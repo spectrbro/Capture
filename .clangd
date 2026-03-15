@@ -1,0 +1,17 @@
+CompileFlags:
+  CompilationDatabase: "./build/debug"
+
+---
+
+If:
+  PathMatch: src/windows-capture.cpp
+CompileFlags:
+  CompilationDatabase: "./build/windows-debug"
+  Add:
+    - --target=x86_64-w64-mingw32
+    - -isystem/opt/homebrew/Cellar/mingw-w64/13.0.0_2/toolchain-x86_64/x86_64-w64-mingw32/include/c++/15.2.0
+    - -isystem/opt/homebrew/Cellar/mingw-w64/13.0.0_2/toolchain-x86_64/x86_64-w64-mingw32/include/c++/15.2.0/x86_64-w64-mingw32
+    - -isystem/opt/homebrew/opt/mingw-w64/toolchain-x86_64/x86_64-w64-mingw32/include
+  Remove:
+    - -arch
+    - arm64
