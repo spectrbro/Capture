@@ -24,3 +24,19 @@ captruing events.
 - MacOS relies on CGEventCreateKeyboardEvent which is at the Quartz level and not native driver level. So when you let the application take control of the Mac
   and you use shortcuts for Mission Control (Ctrl+Left/Right/Up), modifier keys tend to get stuck. I am currently looking to move over to IOHID framework, but I am not sure how
   open the API is.
+
+
+# How to build
+
+Development is done on M1 Mac with mingw64 compiler installed through brew. A mingw toolchain is included based upon that.
+
+```sh
+# Builds Mac-Listen
+cmake --preset debug && cmake --build --preset debug
+cmake --preset release && cmake --build --preset release
+```
+
+```sh
+#Builds Windows-Capture
+cmake --preset windows-debug && cmake --build --preset windows-debug
+```
