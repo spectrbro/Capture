@@ -47,8 +47,8 @@ void handleMouseMove(const decltype(Packet::data.mouse_event)* packet)
             left_mouse_held = false;
             postEvent(point, kCGEventLeftMouseUp, kCGMouseButtonLeft, g_clickCount);
             break;
-        case 2: postEvent(point,kCGEventRightMouseDown, kCGMouseButtonRight, 0); break;
-        case -2: postEvent(point, kCGEventRightMouseUp, kCGMouseButtonRight, 0); break;
+        case 2: postEvent(point,kCGEventRightMouseDown, kCGMouseButtonRight, 1); break;
+        case -2: postEvent(point, kCGEventRightMouseUp, kCGMouseButtonRight, 1); break;
         default: break;
     }
     if (packet->x != 0 || packet->y != 0)
@@ -60,12 +60,12 @@ void handleMouseKeys(const decltype(Packet::data.mouse_keys)* packet)
     CGPoint point = {cur_x, cur_y};
 
     switch (packet->button) {
-        case 3: postEvent(point, kCGEventOtherMouseDown, kCGMouseButtonCenter, 0); break;
-        case -3: postEvent(point, kCGEventOtherMouseUp, kCGMouseButtonCenter, 0); break;
-        case 4: postEvent(point, kCGEventOtherMouseDown, (CGMouseButton)3, 0); break;
-        case -4: postEvent(point, kCGEventOtherMouseUp, (CGMouseButton)3, 0); break;
-        case 5: postEvent(point, kCGEventOtherMouseDown, (CGMouseButton)4, 0); break;
-        case -5: postEvent(point, kCGEventOtherMouseUp, (CGMouseButton)4, 0); break;
+        case 3: postEvent(point, kCGEventOtherMouseDown, kCGMouseButtonCenter, 1); break;
+        case -3: postEvent(point, kCGEventOtherMouseUp, kCGMouseButtonCenter, 1); break;
+        case 4: postEvent(point, kCGEventOtherMouseDown, (CGMouseButton)3, 1); break;
+        case -4: postEvent(point, kCGEventOtherMouseUp, (CGMouseButton)3, 1); break;
+        case 5: postEvent(point, kCGEventOtherMouseDown, (CGMouseButton)4, 1); break;
+        case -5: postEvent(point, kCGEventOtherMouseUp, (CGMouseButton)4, 1); break;
         default: break;
     }
 }
