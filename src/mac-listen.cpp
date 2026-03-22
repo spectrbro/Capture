@@ -11,6 +11,7 @@ sockaddr_in sockAddress;
 CGRect screen = CGDisplayBounds(CGMainDisplayID());
 
 CGEventSourceRef g_eventSource = CGEventSourceCreate(kCGEventSourceStateCombinedSessionState);
+CGEventFlags g_modifiers = 0x0;
 
 float cur_x = 0;
 float cur_y = 0;
@@ -80,23 +81,59 @@ void handleMouseScroll(const decltype(Packet::data.mouse_wheel)* packet)
 void handleKeyboard(const decltype(Packet::data.keyboard)* packet)
 {
     uint32_t key = translateKey(packet->keycode);
-        if (key == 0xFF) return;
-    
-        CGEventRef e = CGEventCreateKeyboardEvent(NULL, (CGKeyCode)key, packet->down);
-        CGEventFlags flags = CGEventGetFlags(e);
-        
-        //removes modifiers set by space global system shortcuts (hopefully)
-        if (!(key >= 123 && key <= 126)) {
-            flags &= ~kCGEventFlagMaskNumericPad;
-            flags &= ~kCGEventFlagMaskSecondaryFn;
-        } else {
-            flags |= (kCGEventFlagMaskNumericPad | kCGEventFlagMaskSecondaryFn);
-        }
-    
-        CGEventSetFlags(e, flags);
-        CGEventPost(kCGHIDEventTap, e);
-        CFRelease(e);
+    if (key == 0xFF) return;
+    bool down = packet->down;
+
+    // update modifier state
+    switch(key) {
+        case kVK_Shift:        case kVK_RightShift:
+            down ? (g_modifiers |= kCGEventFlagMaskShift)       : (g_modifiers &= ~kCGEventFlagMaskShift);     break;
+        case kVK_Control:      case kVK_RightControl:
+            down ? (g_modifiers |= kCGEventFlagMaskControl)     : (g_modifiers &= ~kCGEventFlagMaskControl);   break;
+        case kVK_Option:       case kVK_RightOption:
+            down ? (g_modifiers |= kCGEventFlagMaskAlternate)   : (g_modifiers &= ~kCGEventFlagMaskAlternate); break;
+        case kVK_Command:      case kVK_RightCommand:
+            down ? (g_modifiers |= kCGEventFlagMaskCommand)     : (g_modifiers &= ~kCGEventFlagMaskCommand);   break;
+        case kVK_Function:
+            down ? (g_modifiers |= kCGEventFlagMaskSecondaryFn) : (g_modifiers &= ~kCGEventFlagMaskSecondaryFn); break;
+        case kVK_CapsLock:
+            if (down) g_modifiers ^= kCGEventFlagMaskAlphaShift; break;
+    }
+
+    CGEventRef e = CGEventCreateKeyboardEvent(NULL, (CGKeyCode)key, down);
+
+    switch(key) {
+        case kVK_CapsLock:
+        case kVK_Shift:        case kVK_RightShift:
+        case kVK_Control:      case kVK_RightControl:
+        case kVK_Option:       case kVK_RightOption:
+        case kVK_Command:      case kVK_RightCommand:
+        case kVK_Function:
+            CGEventSetType(e, kCGEventFlagsChanged);
+            CGEventSetFlags(e, g_modifiers);
+            break;
+        case kVK_ANSI_Keypad0: case kVK_ANSI_Keypad1: case kVK_ANSI_Keypad2:
+        case kVK_ANSI_Keypad3: case kVK_ANSI_Keypad4: case kVK_ANSI_Keypad5:
+        case kVK_ANSI_Keypad6: case kVK_ANSI_Keypad7: case kVK_ANSI_Keypad8:
+        case kVK_ANSI_Keypad9: case kVK_ANSI_KeypadDecimal:
+        case kVK_ANSI_KeypadPlus: case kVK_ANSI_KeypadMinus:
+        case kVK_ANSI_KeypadMultiply: case kVK_ANSI_KeypadDivide:
+        case kVK_ANSI_KeypadEnter: case kVK_ANSI_KeypadClear:
+            CGEventSetFlags(e, g_modifiers | kCGEventFlagMaskNumericPad);
+            break;
+        case kVK_LeftArrow: case kVK_RightArrow:
+        case kVK_UpArrow:   case kVK_DownArrow:
+            CGEventSetFlags(e, g_modifiers | kCGEventFlagMaskNumericPad | kCGEventFlagMaskSecondaryFn); // Arrow events for some reason append to the mask of arrows (it seems): kCGEventFlagMaskNumericPad kCGEventFlagMaskSecondaryFn
+            break;
+        default:
+            CGEventSetFlags(e, g_modifiers);
+            break;
+    }
+
+    CGEventPost(kCGHIDEventTap, e);
+    CFRelease(e);
 }
+
 
 void socketCallback(CFSocketRef s, CFSocketCallBackType type, CFDataRef address, const void* data, void* info)
 {
