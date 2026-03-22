@@ -8,7 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_subdirectory(utils)
 
 if(WIN32)
-    add_executable(Windows-Capture src/windows-capture.cpp)
+    add_executable(Windows-Capture WIN32 src/windows-capture.cpp)
     target_link_libraries(Windows-Capture 
         PRIVATE 
         ws2_32

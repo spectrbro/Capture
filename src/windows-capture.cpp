@@ -21,11 +21,12 @@ LRESULT CALLBACK KeyHook(int nCode, WPARAM wParam, LPARAM lParam)
 {
     if (nCode < 0) return CallNextHookEx(nullptr, nCode, wParam, lParam);
     KBDLLHOOKSTRUCT* kb = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
-    uint16_t scancode = static_cast<uint16_t>(kb->scanCode); //Scan codes only ever use the lower 8 bits (`0x00`–`0xFF`)
+    uint16_t scancode = static_cast<uint16_t>(kb->scanCode);
     bool extended = (kb->flags & LLKHF_EXTENDED) != 0;
     bool down = (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN);
     if (kb->vkCode == VK_PRIOR) { if (down) PostMessage(g_hwnd, WM_APP, 0, 0); return 1; }
-    sendPacket({Packet::KEYBOARD, {.keyboard = {static_cast<uint16_t>(scancode | (extended ? 0x100 : 0)), down}}});
+    uint16_t key = scancode | (extended ? 0x100 : 0);
+    sendPacket({Packet::KEYBOARD, {.keyboard = {key, down}}});
     return 1;
 }
 
@@ -82,6 +83,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                     case RI_MOUSE_LEFT_BUTTON_UP: sendPacket({Packet::MOUSE, {.mouse_event = {dx(), dy(), -1}}}); break;
                     case RI_MOUSE_RIGHT_BUTTON_DOWN: sendPacket({Packet::MOUSE, {.mouse_event = {dx(), dy(), 2}}});  break;
                     case RI_MOUSE_RIGHT_BUTTON_UP: sendPacket({Packet::MOUSE, {.mouse_event = {dx(), dy(), -2}}}); break;
+                    case RI_MOUSE_BUTTON_3_DOWN: sendPacket({Packet::MOUSE_KEYS, {.mouse_keys = {3}}}); break;
+                    case RI_MOUSE_BUTTON_3_UP: sendPacket({Packet::MOUSE_KEYS, {.mouse_keys = {-3}}}); break;
+                    case RI_MOUSE_BUTTON_4_DOWN: sendPacket({Packet::MOUSE_KEYS, {.mouse_keys = {4}}}); break;
+                    case RI_MOUSE_BUTTON_4_UP: sendPacket({Packet::MOUSE_KEYS, {.mouse_keys = {-4}}}); break;
+                    case RI_MOUSE_BUTTON_5_DOWN: sendPacket({Packet::MOUSE_KEYS, {.mouse_keys = {5}}}); break;
+                    case RI_MOUSE_BUTTON_5_UP: sendPacket({Packet::MOUSE_KEYS, {.mouse_keys = {-5}}}); break;
                     case RI_MOUSE_WHEEL: sendPacket({Packet::MOUSE_WHEEL, {.mouse_wheel = {wheel_delta()}}}); break;
                     default: { float x = dx(), y = dy(); if (x != 0 || y != 0) sendPacket({Packet::MOUSE, {.mouse_event = {x, y, 0}}}); break; }
                 }
@@ -106,15 +113,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-BOOL WINAPI ConsoleHandler(DWORD signal) {
-    if (signal == CTRL_C_EVENT || signal == CTRL_CLOSE_EVENT) {
-        PostQuitMessage(0);
-        return TRUE;
-    }
-    return FALSE;
-}
-
-int main()
+int WINAPI  WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
     WSADATA wsa;
     WSAStartup(MAKEWORD(2, 2), &wsa);
@@ -122,19 +121,16 @@ int main()
     dest.sin_port = htons(9000);
     sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     inet_pton(AF_INET, "10.10.10.230", &dest.sin_addr);
-    SetConsoleCtrlHandler(ConsoleHandler, TRUE);
 
     WNDCLASSEX wc = {};
     wc.cbSize = sizeof(wc);
     wc.lpfnWndProc = WndProc;
-    wc.hInstance = GetModuleHandle(nullptr);
+    wc.hInstance = hInstance;
     wc.lpszClassName = "RawInput";
     RegisterClassEx(&wc);
 
-    g_hwnd = CreateWindowEx(0, "RawInput", nullptr, WS_POPUP, 0, 0, 1, 1, nullptr, nullptr, GetModuleHandle(nullptr), nullptr);
-    ShowWindow(g_hwnd, SW_SHOW);
-    SetForegroundWindow(g_hwnd);
-    
+    g_hwnd = CreateWindowEx(0, "RawInput", nullptr, WS_POPUP, 0, 0, 1, 1, nullptr, nullptr, hInstance, nullptr);
+
     install();
 
     MSG msg;

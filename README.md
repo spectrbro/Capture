@@ -21,9 +21,8 @@ captruing events.
 - Hard coded hotkey
 - Hard coded IP
 - No encryption of data sent from one machine to the other
-- MacOS relies on CGEventCreateKeyboardEvent which is at the Quartz level and not native driver level. So when you let the application take control of the Mac
-  and you use shortcuts for Mission Control (Ctrl+Left/Right/Up), modifier keys tend to get stuck. I am currently looking to move over to IOHID framework, but I am not sure how
-  open the API is.
+- For some reason, SecondaryFn and NumericPad mask (maybe other masks, not tested extensively) is added on space switches. I manually remove them now, but all edge cases are not 
+  taken into account.
 
 
 # How to build
