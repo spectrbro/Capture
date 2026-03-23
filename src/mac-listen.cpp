@@ -90,8 +90,14 @@ void handleKeyboard(const decltype(Packet::data.keyboard)* packet)
             down ? (g_modifiers |= kCGEventFlagMaskShift)       : (g_modifiers &= ~kCGEventFlagMaskShift);     break;
         case kVK_Control:      case kVK_RightControl:
             down ? (g_modifiers |= kCGEventFlagMaskControl)     : (g_modifiers &= ~kCGEventFlagMaskControl);   break;
-        case kVK_Option:       case kVK_RightOption:
-            down ? (g_modifiers |= kCGEventFlagMaskAlternate)   : (g_modifiers &= ~kCGEventFlagMaskAlternate); break;
+            case kVK_Option: case kVK_RightOption:
+                if (down) {
+                    g_modifiers |= kCGEventFlagMaskAlternate;
+                    if (key == kVK_RightOption) g_modifiers &= ~kCGEventFlagMaskControl; // handles AltGr which adds a spurious ctrl, release of AltGr on windows side sends a control up which is not handled, but it should result in a no op since the release will clear control but it is not down
+                } else {
+                    g_modifiers &= ~kCGEventFlagMaskAlternate;
+                }
+                break;
         case kVK_Command:      case kVK_RightCommand:
             down ? (g_modifiers |= kCGEventFlagMaskCommand)     : (g_modifiers &= ~kCGEventFlagMaskCommand);   break;
         case kVK_Function:
