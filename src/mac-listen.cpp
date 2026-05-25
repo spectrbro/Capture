@@ -39,11 +39,14 @@ void handleMouseMove(const decltype(Packet::data.mouse_event)* packet)
 
     switch (packet->button) {
         case 1:
+        {
             left_mouse_held = true;
-            g_clickCount = (CFAbsoluteTimeGetCurrent() - g_lastClickTime < 0.5) ? g_clickCount + 1 : 1;
-            g_lastClickTime = CFAbsoluteTimeGetCurrent();
+            CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
+            g_clickCount = (now - g_lastClickTime < 0.5) ? g_clickCount + 1 : 1;
+            g_lastClickTime = now;
             postEvent(point, kCGEventLeftMouseDown, kCGMouseButtonLeft, g_clickCount);
             break;
+        }
         case -1:
             left_mouse_held = false;
             postEvent(point, kCGEventLeftMouseUp, kCGMouseButtonLeft, g_clickCount);
@@ -106,7 +109,7 @@ void handleKeyboard(const decltype(Packet::data.keyboard)* packet)
             if (down) g_modifiers ^= kCGEventFlagMaskAlphaShift; break;
     }
 
-    CGEventRef e = CGEventCreateKeyboardEvent(NULL, (CGKeyCode)key, down);
+    CGEventRef e = CGEventCreateKeyboardEvent(g_eventSource, (CGKeyCode)key, down);
 
     switch(key) {
         case kVK_CapsLock:

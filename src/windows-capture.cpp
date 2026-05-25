@@ -20,8 +20,7 @@ static void* g_pBuffer    = nullptr;
 
 void SendPacket(const Packet& p)
 {
-    sendto(sock, reinterpret_cast<const char*>(&p), sizeof(p), 0,
-           reinterpret_cast<sockaddr*>(&dest), sizeof(dest));
+    send(sock, reinterpret_cast<const char*>(&p), sizeof(p), 0);
 }
 
 LRESULT CALLBACK KeyHook(int nCode, WPARAM wParam, LPARAM lParam)
@@ -78,6 +77,12 @@ void ProcessInput(const RAWINPUT* raw)
     auto wheel_delta = [&]{ return static_cast<int16_t>(raw->data.mouse.usButtonData); };
     uint16_t flags   = raw->data.mouse.usButtonFlags;
 
+    if (!flags) {
+        float x = dx(), y = dy();
+        if (x != 0 || y != 0) SendPacket({Packet::MOUSE, {.mouse_event = {x, y, 0}}});
+        return;
+    }
+
     if (flags & RI_MOUSE_LEFT_BUTTON_DOWN)  SendPacket({Packet::MOUSE, {.mouse_event = {dx(), dy(),  1}}});
     if (flags & RI_MOUSE_LEFT_BUTTON_UP)    SendPacket({Packet::MOUSE, {.mouse_event = {dx(), dy(), -1}}});
     if (flags & RI_MOUSE_RIGHT_BUTTON_DOWN) SendPacket({Packet::MOUSE, {.mouse_event = {dx(), dy(),  2}}});
@@ -89,13 +94,9 @@ void ProcessInput(const RAWINPUT* raw)
     if (flags & RI_MOUSE_BUTTON_5_DOWN)     SendPacket({Packet::MOUSE_KEYS, {.mouse_keys = { 5}}});
     if (flags & RI_MOUSE_BUTTON_5_UP)       SendPacket({Packet::MOUSE_KEYS, {.mouse_keys = {-5}}});
     if (flags & RI_MOUSE_WHEEL)             SendPacket({Packet::MOUSE_WHEEL, {.mouse_wheel = {wheel_delta()}}});
-
-    if (!flags) {
-        float x = dx(), y = dy();
-        if (x != 0 || y != 0) SendPacket({Packet::MOUSE, {.mouse_event = {x, y, 0}}});
-    }
 }
 
+// https://learn.microsoft.com/en-us/windows/win32/inputdev/using-raw-input
 void DrainRawInputQueue()
 {
     for (;;)
@@ -106,10 +107,12 @@ void DrainRawInputQueue()
         if (count == (UINT)-1)
         {
             g_bufferSize = std::max(bufferSize, g_bufferSize * 2);
-            g_pBuffer = realloc(g_pBuffer, g_bufferSize);
-            if (!g_pBuffer) break;
+            void* tmp = realloc(g_pBuffer, g_bufferSize); // in case nullptr is returned
+            if (!tmp) break;
+            g_pBuffer = tmp;
             continue;
         }
+
         RAWINPUT* r = (RAWINPUT*)g_pBuffer;
         for (UINT i = 0; i < count; ++i, r = NEXTRAWINPUTBLOCK(r))
             ProcessInput(r);
@@ -151,6 +154,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     dest.sin_port = htons(9000);
     sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     inet_pton(AF_INET, "10.10.10.230", &dest.sin_addr);
+    if (connect(sock, reinterpret_cast<sockaddr*>(&dest), sizeof(dest)) == SOCKET_ERROR) {
+        return 1;
+    }
 
     WNDCLASSEX wc = {};
     wc.cbSize = sizeof(wc);
@@ -159,15 +165,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     wc.lpszClassName = "RawInput";
     RegisterClassEx(&wc);
 
-    g_hwnd = CreateWindowEx(0, "RawInput", nullptr, WS_POPUP, 0, 0, 1, 1, nullptr, nullptr, hInstance, nullptr);
+    g_hwnd = CreateWindowEx(0, "RawInput", nullptr, 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, hInstance, nullptr);
 
     Install();
 
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0)) {
-        TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
+
     Uninstall();
     DestroyWindow(g_hwnd);
     UnregisterClass("RawInput", GetModuleHandle(nullptr));
